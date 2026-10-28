@@ -114,9 +114,12 @@ class SimulationEngine:
             now = datetime.datetime.now(datetime.timezone.utc)
             self.pump_state = "RUNNING"
             self.pump_started_at = now
+            self.target_duration = duration_seconds
             self.session_runtime = 0
             self.start_soil_moisture = self.soil_moisture
             self.active_session_id = str(uuid.uuid4())
+            if self.is_paused:
+                self.is_paused = False  # Auto-resume simulation if pump starts
             self.last_decision_reason = reason
             self.last_decision_action = "START"
             
@@ -151,6 +154,8 @@ class SimulationEngine:
             finally:
                 db.close()
                 
+            # Immediately persist a reading so the graph immediately marks the pump as ON!
+            self._persist_reading(now)
             self._broadcast_state()
             return {
                 "status": "SUCCESS",
@@ -211,6 +216,7 @@ class SimulationEngine:
 
             self.pump_started_at = None
             self.session_runtime = 0
+            self._persist_reading(now)
             self._broadcast_state()
             
             return {
@@ -298,57 +304,62 @@ class SimulationEngine:
 
             if self.pump_state == "RUNNING":
                 # Gradual soil saturation: increases smoothly with irrigation
-                rate = 1.2 * self.speed
+                rate = 1.0 * self.speed
                 self.soil_moisture = min(98.0, self.soil_moisture + rate)
                 self.session_runtime += int(2 * self.speed)
                 
-                # Safety Check: Target moisture reached
-                if self.soil_moisture >= target_thresh:
-                    logger.info(f"Simulation: Target moisture {target_thresh}% reached ({self.soil_moisture:.1f}%). Stopping pump.")
-                    self.stop_pump(f"Target moisture reached ({self.soil_moisture:.1f}% >= target {target_thresh:.1f}%). Irrigation stopped successfully.")
+                # In AI Mode: Automatically shut off pump when target moisture is reached!
+                # In Manual Mode: Do NOT shut off on target; user can run the pump for extended long hours as desired.
+                is_ai_mode = (perm_mode in ["AUTHORIZED_AUTO", "ASK_BEFORE_ACTION"])
+                if is_ai_mode and self.soil_moisture >= target_thresh:
+                    logger.info(f"Simulation AI Mode: Target moisture {target_thresh}% reached ({self.soil_moisture:.1f}%). Stopping pump.")
+                    self.stop_pump(f"AI Target moisture reached ({self.soil_moisture:.1f}% >= target {target_thresh:.1f}%). Irrigation stopped successfully.")
                     return
 
-                # Safety Check: Max runtime exceeded
-                if self.session_runtime >= max_runtime:
-                    logger.warning(f"Simulation: Max runtime {max_runtime}s exceeded. Safety stop triggered.")
-                    self.stop_pump(f"Safety limit: Maximum runtime of {max_runtime}s reached. Irrigation stopped.")
+                # Duration limit check
+                allowed_duration = getattr(self, "target_duration", None) or (86400 if perm_mode == "MANUAL_CONTROL" else max_runtime)
+                if self.session_runtime >= allowed_duration:
+                    logger.warning(f"Simulation: Runtime limit {allowed_duration}s reached. Stopping pump.")
+                    self.stop_pump(f"Irrigation duration limit of {allowed_duration}s reached. Irrigation stopped.")
                     return
+
+                # RECORD A READING ON EVERY TICK WHILE PUMP IS RUNNING SO THE GRAPH SHOWS THE MOTOR IS ON!
+                self._persist_reading(now)
 
             else:
                 # Gradual natural soil drying (evaporation + plant water uptake)
                 dry_rate = 0.08 * self.speed
                 self.soil_moisture = max(12.0, self.soil_moisture - dry_rate)
 
-                # Automatic Mode Evaluation when Pump is OFF
+                # AI Mode Evaluation when Pump is OFF
                 if auto_mode and not self.sensor_fault:
                     if self.soil_moisture < dry_thresh:
-                        # Dry threshold violated!
                         if rain_pause and self.rain_detected:
                             self.last_decision_reason = "Watering paused because the configured rain policy is active."
                             self.last_decision_action = "HOLD"
                         else:
                             # Soil is dry and rain is clear!
                             if perm_mode == "AUTHORIZED_AUTO":
-                                reason = f"Automatic irrigation started because soil moisture fell below the configured dry threshold ({self.soil_moisture:.1f}% < {dry_thresh:.1f}%)."
-                                logger.info(f"Simulation Auto: {reason}")
+                                reason = f"AI Mode started irrigation: soil moisture fell below dry threshold ({self.soil_moisture:.1f}% < {dry_thresh:.1f}%)."
+                                logger.info(f"Simulation AI: {reason}")
                                 self.start_pump(duration_seconds=max_runtime, reason=reason)
                                 return
                             elif perm_mode == "ASK_BEFORE_ACTION":
-                                self.last_decision_reason = f"Proposed action: Start irrigation (Soil moisture {self.soil_moisture:.1f}% < {dry_thresh:.1f}%). Awaiting operator approval."
+                                self.last_decision_reason = f"Proposed action: AI recommends starting irrigation (Moisture {self.soil_moisture:.1f}% < {dry_thresh:.1f}%). Awaiting operator approval."
                                 self.last_decision_action = "PROPOSED_START"
                                 self._propose_action("START_IRRIGATION", self.last_decision_reason)
                             else:
-                                self.last_decision_reason = "Pump remains off because system is in Manual Control permission mode."
+                                self.last_decision_reason = "Pump remains off because system is in Manual Control mode."
                                 self.last_decision_action = "HOLD"
                     else:
-                        self.last_decision_reason = f"Pump remains off because soil moisture ({self.soil_moisture:.1f}%) is within the optimal range (Threshold: {dry_thresh:.1f}%)."
+                        self.last_decision_reason = f"Pump remains off because soil moisture ({self.soil_moisture:.1f}%) is within optimal range (Target: {target_thresh:.1f}%)."
                         self.last_decision_action = "HOLD"
 
-            # 3. Persist sensor reading every 5 ticks (10s)
-            if self._tick_counter % 5 == 0:
-                self._persist_reading(now)
+                # Persist sensor reading every 5 ticks (10s) when idle
+                if self._tick_counter % 5 == 0:
+                    self._persist_reading(now)
 
-            # 4. Broadcast live state
+            # Broadcast live state
             self._broadcast_state()
 
     def _propose_action(self, action: str, reason: str):

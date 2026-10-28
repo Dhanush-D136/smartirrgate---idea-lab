@@ -84,7 +84,7 @@ class SensorReadingResponse(BaseModel):
 class CommandRequest(BaseModel):
     action: str = Field(..., description="START_PUMP, STOP_PUMP, EMERGENCY_STOP")
     device_id: Optional[str] = None
-    duration_seconds: Optional[int] = Field(None, ge=10, le=1800, description="Max runtime limit in seconds")
+    duration_seconds: Optional[int] = Field(None, ge=10, le=86400, description="Runtime duration in seconds (up to 24 hours)")
     reason: Optional[str] = "Manual remote action"
 
 class CommandResponse(BaseModel):

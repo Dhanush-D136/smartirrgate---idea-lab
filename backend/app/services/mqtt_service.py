@@ -37,6 +37,11 @@ class MQTTService:
 
     def start(self):
         try:
+            import socket
+            # Fast probe to see if MQTT broker is listening before initiating client loop
+            with socket.create_connection((settings.MQTT_BROKER_HOST, settings.MQTT_BROKER_PORT), timeout=0.5):
+                pass
+
             # Paho MQTT 2.0+ client init
             self.client = mqtt.Client(
                 callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
@@ -56,6 +61,7 @@ class MQTTService:
         except Exception as e:
             logger.warning(f"Could not connect to MQTT broker ({e}). Backend will run in disconnected/simulation-ready mode.")
             self.is_connected = False
+            self.client = None
 
     def stop(self):
         if self.client:
@@ -64,6 +70,7 @@ class MQTTService:
                 self.client.disconnect()
             except Exception:
                 pass
+            self.client = None
             self.is_connected = False
 
     def _on_connect(self, client, userdata, flags, rc, properties=None):

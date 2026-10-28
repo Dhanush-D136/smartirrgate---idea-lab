@@ -198,10 +198,16 @@ def set_irrigation_mode(
         "message": f"Irrigation operating mode updated to {mode_str}"
     }
 
+@router.get("/permission")
+def get_permission_mode():
+    return {
+        "status": "SUCCESS",
+        "permission_mode": state_manager.get_permission_mode()
+    }
+
 @router.post("/permission")
 def set_permission_mode(
-    req: PermissionModeUpdateRequest,
-    current_user: User = Depends(get_current_user)
+    req: PermissionModeUpdateRequest
 ):
     try:
         updated = state_manager.set_permission_mode(req.permission_mode)

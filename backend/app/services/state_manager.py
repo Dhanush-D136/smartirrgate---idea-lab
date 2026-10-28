@@ -106,6 +106,13 @@ class SystemStateManager:
                 state.permission_mode = new_perm
                 state.updated_at = datetime.datetime.now(datetime.timezone.utc)
                 db.commit()
+            
+            # Synchronize auto_mode_enabled with permission mode
+            setting = db.query(IrrigationSetting).filter(IrrigationSetting.device_id == settings.DEFAULT_ESP32_ID).first()
+            if setting:
+                setting.auto_mode_enabled = (new_perm != "MANUAL_CONTROL")
+                db.commit()
+
             return new_perm
         finally:
             db.close()
