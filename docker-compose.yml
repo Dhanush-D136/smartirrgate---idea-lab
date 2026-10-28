@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  # MQTT Broker (Mosquitto)
+  mqtt-broker:
+    image: eclipse-mosquitto:2.0
+    container_name: smartirrigate-mqtt
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./infra/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto-data:/mosquitto/data
+      - mosquitto-log:/mosquitto/log
+
+  # PostgreSQL Database (Optional - can also use SQLite for quickstart)
+  postgres:
+    image: postgres:16-alpine
+    container_name: smartirrigate-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: smartirrigate
+      POSTGRES_PASSWORD: secret_db_password_2026
+      POSTGRES_DB: smartirrigate_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  # FastAPI Backend API
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: smartirrigate-backend
+    restart: unless-stopped
+    depends_on:
+      - mqtt-broker
+      - postgres
+    environment:
+      - DATABASE_URL=postgresql://smartirrigate:secret_db_password_2026@postgres:5432/smartirrigate_db
+      - MQTT_BROKER_HOST=mqtt-broker
+      - MQTT_BROKER_PORT=1883
+      - SECRET_KEY=smartirrigate-velgreenish-super-secure-key-2026-very-secret-token
+    ports:
+      - "8000:8000"
+
+  # React Frontend (Vite)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: smartirrigate-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+volumes:
+  mosquitto-data:
+  mosquitto-log:
+  pgdata:

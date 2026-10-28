@@ -1,0 +1,138 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-forest: #244B36;
+    --color-botanical: #557A52;
+    --color-sage: #A9BBA0;
+    --color-mint: #E7EFE4;
+    --color-ivory: #FAF8F1;
+    --color-beige: #DCCCB2;
+    --color-cream: #F2EBDD;
+    --color-charcoal: #27342C;
+    --color-muted: #778078;
+    --color-amber: #C58A32;
+    --color-red: #B84B43;
+  }
+
+  body {
+    background-color: #FAF8F1;
+    color: #27342C;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+  }
+}
+
+/* Glassmorphism & Nature Card Utilities */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(169, 187, 160, 0.35);
+  box-shadow: 0 10px 30px -10px rgba(36, 75, 54, 0.08), 0 4px 6px -2px rgba(36, 75, 54, 0.03);
+}
+
+.glass-panel-dark {
+  background: rgba(36, 75, 54, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(169, 187, 160, 0.25);
+  box-shadow: 0 12px 36px -8px rgba(15, 35, 25, 0.25);
+  color: #FAF8F1;
+}
+
+.glass-pill {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(169, 187, 160, 0.4);
+  box-shadow: 0 4px 12px rgba(36, 75, 54, 0.06);
+}
+
+.gradient-hero {
+  background: radial-gradient(circle at 80% 20%, rgba(85, 122, 82, 0.45) 0%, rgba(36, 75, 54, 0.95) 100%);
+}
+
+.gradient-card-amber {
+  background: linear-gradient(135deg, #F3BA4C 0%, #D8982D 100%);
+}
+
+.glow-green {
+  box-shadow: 0 0 20px -3px rgba(85, 122, 82, 0.4);
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F2EBDD;
+}
+::-webkit-scrollbar-thumb {
+  background: #A9BBA0;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #557A52;
+}
+
+/* ============================================================== */
+/* LUXURY LOGO SHINE & PERIODIC GLEAM ANIMATIONS                  */
+/* Sweeps light across transparent PNG logos with radiant bloom   */
+/* ============================================================== */
+@keyframes logo-gleam {
+  0% {
+    transform: translateX(-160%) skewX(-25deg);
+    opacity: 0;
+  }
+  8% {
+    opacity: 0.95;
+  }
+  30% {
+    transform: translateX(180%) skewX(-25deg);
+    opacity: 0.95;
+  }
+  40% {
+    transform: translateX(230%) skewX(-25deg);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(230%) skewX(-25deg);
+    opacity: 0;
+  }
+}
+
+.animate-logo-gleam {
+  width: 70%;
+  height: 100%;
+  animation: logo-gleam 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-logo-gleam-delayed {
+  width: 70%;
+  height: 100%;
+  animation: logo-gleam 4s cubic-bezier(0.4, 0, 0.2, 1) 0.4s infinite;
+}
+
+@keyframes logo-aura-pulse {
+  0%, 100% {
+    filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.7)) drop-shadow(0 1px 3px rgba(0, 0, 0, 0.9));
+  }
+  25% {
+    filter: drop-shadow(0 4px 20px rgba(0, 0, 0, 0.85)) drop-shadow(0 0 22px rgba(255, 255, 255, 0.65)) drop-shadow(0 1px 3px rgba(0, 0, 0, 0.9));
+  }
+  50% {
+    filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.7)) drop-shadow(0 1px 3px rgba(0, 0, 0, 0.9));
+  }
+}
+
+.logo-aura-glow {
+  animation: logo-aura-pulse 4s ease-in-out infinite;
+}
+
+.logo-aura-glow-delayed {
+  animation: logo-aura-pulse 4s ease-in-out 0.4s infinite;
+}
+
